@@ -212,9 +212,13 @@ function MediaUploader({
         className="hidden"
         onChange={handleFileChange}
       />
-      {preview && format === HeaderFormat.IMAGE && (
-        <div className="relative rounded-xl overflow-hidden border border-gray-200">
-          <img src={preview} alt="Header Preview" className="w-full h-[140px] object-cover" />
+          {preview && format === HeaderFormat.IMAGE && (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200">
+        <img 
+          src={DOMPurify.sanitize(preview)} 
+          alt="Header Preview" 
+          className="w-full h-[140px] object-cover" 
+        />
           <button
             onClick={() => { setPreview(null); onUpload(""); }}
             className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition"
@@ -225,7 +229,7 @@ function MediaUploader({
       )}
       {preview && format === HeaderFormat.VIDEO && (
         <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-black">
-          <video src={preview} className="w-full h-[140px] object-cover" controls />
+          <video src={DOMPurify.sanitize(preview)} className="w-full h-[140px] object-cover" controls />
           <button
             onClick={() => { setPreview(null); onUpload(""); }}
             className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition"

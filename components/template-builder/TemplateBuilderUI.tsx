@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { auth, database } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, onValue } from "firebase/database";
+import DOMPurify from "isomorphic-dompurify";
 
 import {
   Image as ImageIcon,

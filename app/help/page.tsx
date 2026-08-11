@@ -62,7 +62,7 @@ export default function HelpPage() {
               <p className="text-sm text-white/80 mt-0.5">Our developer support team is available 24/7 to help you out.</p>
             </div>
             <a 
-              href="mailto:support@basekey.io" 
+              href="mailto:support@basekey.in" 
               className="bg-white text-[#075E54] hover:bg-gray-100 px-5 py-2.5 rounded-xl font-bold text-sm transition shadow flex items-center gap-2 shrink-0"
             >
               <Mail className="w-4 h-4" /> Contact Support

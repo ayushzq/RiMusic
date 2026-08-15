@@ -90,7 +90,7 @@ export default function ChatBubble({
   const [showActions, setShowActions] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  const isMe = msg.sender === "me";
+  const isMe = msg.direction === "OUTBOUND";
   const type = msg.type || "text";
 
   const startInteraction = (clientX: number) => {

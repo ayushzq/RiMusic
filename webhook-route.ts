@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { ref, set, push } from "firebase/database";
-import { database } from "@/lib/firebase";
+// ✅ NAYA: Firebase hata kar Prisma import kiya
+import { PrismaClient } from "@prisma/client";
 
+const prisma = new PrismaClient();
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "basekey_verify_token";
 
 // GET — Webhook verification (Meta calls this when registering webhook)
@@ -64,68 +65,90 @@ async function handleIncomingMessage(phoneId: string, message: any) {
 
   let text = "";
   let mediaUrl = null;
+  // ✅ NAYA: Prisma Enum ke hisaab se type map karne ke liye
+  let mappedType = "TEXT"; 
 
-  // Extract message content based on type
+  // 📝 TUMHARA PURANA LOGIC (Ekdum waise hi rakha hai)
   switch (messageType) {
     case "text":
       text = message.text?.body || "";
+      mappedType = "TEXT";
       break;
     case "image":
       text = message.image?.caption || "📷 Image";
       mediaUrl = message.image?.id;
+      mappedType = "IMAGE";
       break;
     case "video":
       text = message.video?.caption || "🎥 Video";
       mediaUrl = message.video?.id;
+      mappedType = "VIDEO";
       break;
     case "audio":
       text = "🎵 Audio message";
       mediaUrl = message.audio?.id;
+      mappedType = "AUDIO";
       break;
     case "document":
       text = message.document?.caption || `📄 ${message.document?.filename || "Document"}`;
       mediaUrl = message.document?.id;
+      mappedType = "DOCUMENT";
       break;
     case "location":
       const loc = message.location;
       text = `📍 Location: ${loc?.latitude}, ${loc?.longitude}`;
+      mappedType = "LOCATION";
       break;
     case "button":
       text = message.button?.text || "Button clicked";
+      mappedType = "TEXT";
       break;
     case "interactive":
       text = message.interactive?.button_reply?.title || "Interactive response";
+      mappedType = "TEXT";
       break;
     default:
       text = `📎 ${messageType} message`;
+      mappedType = "TEXT";
   }
 
-  // Save message to Firebase
-  const msgRef = ref(database, `chats/${phoneId}/${from}/messages`);
-  const newMsgRef = push(msgRef);
+  try {
+    // ✅ NAYA: Update contact info in Prisma (Database me naya user bana dega agar nahi hua toh)
+    const contact = await prisma.contact.upsert({
+      where: { id: from },
+      update: {
+        lastMessageAt: new Date(timestamp),
+        unreadCount: { increment: 1 },
+        isSessionActive: true,
+      },
+      create: {
+        id: from,
+        phoneNumber: from,
+        name: from, // Naye number ka naam default number hi hoga
+        lastMessageAt: new Date(timestamp),
+        unreadCount: 1,
+        isSessionActive: true,
+      },
+    });
 
-  await set(newMsgRef, {
-    text,
-    sender: "them",
-    time: new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    timestamp,
-    status: "delivered",
-    metaId: messageId,
-    type: messageType,
-    mediaUrl,
-  });
+    // ✅ NAYA: Save message to Prisma (Pehle Firebase me hota tha)
+    await prisma.message.create({
+      data: {
+        id: messageId,
+        contactId: contact.id,
+        body: text,
+        direction: "INBOUND", // Customer ne bheja hai isliye INBOUND
+        type: mappedType as any,
+        timestamp: new Date(timestamp),
+        status: "DELIVERED",
+        mediaUrl: mediaUrl,
+      },
+    });
 
-  // Update contact info
-  const infoRef = ref(database, `chats/${phoneId}/${from}/info`);
-  await set(infoRef, {
-    name: from,
-    phoneNumber: from,
-    lastMessage: text,
-    updatedAt: timestamp,
-    unread: 1, // Will be cleared when user opens chat
-  });
-
-  console.log(`📩 Received message from ${from}: ${text.substring(0, 50)}...`);
+    console.log(`📩 Received message from ${from}: ${text.substring(0, 50)}...`);
+  } catch (error) {
+    console.error("Error saving message to Prisma:", error);
+  }
 }
 
 async function handleStatusUpdate(phoneId: string, status: any) {
@@ -133,8 +156,17 @@ async function handleStatusUpdate(phoneId: string, status: any) {
   const statusValue = status.status; // sent, delivered, read, failed
   const recipientId = status.recipient_id;
 
-  // Find and update message status in Firebase
-  // This requires storing messageId -> Firebase key mapping
-  // For now, we'll log it
-  console.log(`📊 Status update: ${messageId} -> ${statusValue} for ${recipientId}`);
+  try {
+    // ✅ NAYA: Prisma me message ka status update karna (Double tick, Blue tick)
+    const prismaStatus = statusValue.toUpperCase(); // Prisma ko UPPERCASE pasand hai ("SENT", "READ")
+    
+    await prisma.message.update({
+      where: { id: messageId },
+      data: { status: prismaStatus as any },
+    });
+
+    console.log(`📊 Status update: ${messageId} -> ${statusValue} for ${recipientId}`);
+  } catch (error) {
+    console.log(`⚠️ Status update failed (Message ${messageId} not found in DB)`);
+  }
 }

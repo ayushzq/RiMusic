@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-// ⚠️ Adjust this import to match your actual NextAuth config file/path
-// (e.g. "@/lib/auth", "@/app/api/auth/[...nextauth]/route", etc.)
+
+// NextAuth config import
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { prisma } from "../../../../prisma/lib/db";
+
+// ✅ YAHI THA MAIN FIX: 'db' ko import karke 'prisma' ka naam diya hai
+import { db as prisma } from "../../../../prisma/lib/db";
 
 const META_API_VERSION = "v21.0";
 

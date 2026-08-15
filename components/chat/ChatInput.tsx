@@ -8,13 +8,13 @@ import {
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import TemplatePicker from "./TemplatePicker";
-import type { MetaTemplate } from "../../lib/chatLogic";
+import type { MetaTemplate, MessageType } from "../../lib/chatLogic";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface MediaPreview {
   file: File;
-  type: "image" | "video" | "document";
+  type: MessageType;
   url: string;
   name: string;
   size: string;
@@ -33,7 +33,8 @@ interface ChatInputProps {
   onCancelReply?: () => void;
   activeContactName?: string;
 
-  onSendMedia?: (file: File, type: "image" | "video" | "document" | "audio") => Promise<void>;
+  // ✅ FIX: "image" se Prisma ke uppercase types par shift kiya
+  onSendMedia?: (file: File, type: MessageType) => Promise<void>;
   onSendLocation?: (lat: number, lng: number) => void;
   onSendInteractive?: (type: "quick_reply" | "url") => void;
   onSendTemplate?: (template: MetaTemplate) => void;
@@ -53,11 +54,11 @@ function formatDuration(seconds: number): string {
   return `${m}:${s}`;
 }
 
-// Works out the real media kind of a picked file instead of trusting a fixed label
-function detectKind(file: File): "image" | "video" | "document" {
-  if (file.type.startsWith("image/")) return "image";
-  if (file.type.startsWith("video/")) return "video";
-  return "document";
+// ✅ FIX: Return type ko Prisma MessageType par set kiya ("IMAGE", "VIDEO", "DOCUMENT")
+function detectKind(file: File): MessageType {
+  if (file.type.startsWith("image/")) return "IMAGE";
+  if (file.type.startsWith("video/")) return "VIDEO";
+  return "DOCUMENT";
 }
 
 async function convertAudioToOgg(blob: Blob): Promise<File> {
@@ -79,7 +80,7 @@ async function convertAudioToOgg(blob: Blob): Promise<File> {
 // ─── Instagram-style Stacked Multi-Media Preview ────────────────────────────
 
 interface MultiMediaPreview {
-  files: { file: File; url: string; name: string; size: string; type: "image" | "video" | "document" }[];
+  files: { file: File; url: string; name: string; size: string; type: MessageType }[];
 }
 
 interface MultiMediaBubbleProps {
@@ -109,7 +110,7 @@ function MultiMediaBubble({ previews, isSending, onCancel, onSend, onAddMore }: 
 
   return (
     <>
-      {lightboxOpen && active?.type === "image" && (
+      {lightboxOpen && active?.type === "IMAGE" && (
         <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4" onClick={() => setLightboxOpen(false)}>
           <button className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-white/10" onClick={() => setLightboxOpen(false)}>
             <X className="w-5 h-5" />
@@ -124,7 +125,7 @@ function MultiMediaBubble({ previews, isSending, onCancel, onSend, onAddMore }: 
           {items.length >= 2 && <div className="absolute inset-0 rounded-2xl bg-gray-300 transform rotate-[-2deg] scale-[0.985] z-[1]" />}
 
           <div className="relative z-[2]">
-            {active?.type === "image" ? (
+            {active?.type === "IMAGE" ? (
               <div className="relative rounded-2xl overflow-hidden shadow-xl cursor-pointer group" onClick={() => setLightboxOpen(true)}>
                 <img src={active.url} alt={active.name} className="w-full object-cover max-h-48 rounded-2xl" />
                 {isSending && (
@@ -133,7 +134,7 @@ function MultiMediaBubble({ previews, isSending, onCancel, onSend, onAddMore }: 
                   </div>
                 )}
               </div>
-            ) : active?.type === "video" ? (
+            ) : active?.type === "VIDEO" ? (
               <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black">
                 <video src={active.url} className="w-full max-h-48 rounded-2xl" controls />
                 {isSending && (
@@ -145,7 +146,7 @@ function MultiMediaBubble({ previews, isSending, onCancel, onSend, onAddMore }: 
             ) : (
               <div className="bg-white rounded-2xl p-3 shadow-md flex items-center gap-3 border border-gray-100">
                 <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-purple-600" /></div>
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-gray-800 truncate">{active.name}</p></div>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-gray-800 truncate">{active?.name}</p></div>
                 {isSending && <Loader2 className="w-4 h-4 text-purple-500 animate-spin shrink-0" />}
               </div>
             )}
@@ -273,10 +274,8 @@ export default function ChatInput({
     textareaRef.current?.focus();
   };
 
-  // Shared handler for gallery, camera and document inputs — detects the real
-  // file kind instead of trusting a fixed label, so a video picked from the
-  // gallery is never mislabeled as an image.
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, forcedType?: "document") => {
+  // ✅ FIX: handleFileChange ab detectKind se Prisma ka uppercase enum use karega
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, forcedType?: MessageType) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const newItems = files.map((file) => ({
@@ -307,7 +306,6 @@ export default function ChatInput({
 
   const handleCancelPendingMedias = () => { if (pendingMedias) pendingMedias.files.forEach((i) => URL.revokeObjectURL(i.url)); setPendingMedias(null); };
 
-  // Location sharing via the browser's Geolocation API
   const handleLocationClick = () => {
     if (!navigator.geolocation) {
       alert("Aapka browser location support nahi karta.");
@@ -339,7 +337,7 @@ export default function ChatInput({
     setIsRecording(false);
     if (!onSendMedia) return;
     const file = await convertAudioToOgg(blob);
-    await onSendMedia(file, "audio");
+    await onSendMedia(file, "AUDIO"); // ✅ FIX: Lowercase se Prisma Enum 'AUDIO'
   }, [onSendMedia]);
 
   const mediaOptions = [
@@ -372,12 +370,9 @@ export default function ChatInput({
 
       <div className="w-full max-w-4xl bg-white/95 backdrop-blur-xl border border-gray-200/80 shadow-[0_4px_25px_rgb(0,0,0,0.1)] rounded-[24px] pointer-events-auto p-1 flex flex-col transition-all duration-300">
 
-        {/* Gallery: pick existing photos/videos, multiple allowed */}
         <input type="file" ref={galleryInputRef} accept="image/*,video/*" multiple className="hidden" onChange={(e) => handleFileChange(e)} />
-        {/* Camera: opens the device camera directly and captures a photo */}
         <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFileChange(e)} />
-        {/* Document */}
-        <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" className="hidden" onChange={(e) => handleFileChange(e, "document")} />
+        <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" className="hidden" onChange={(e) => handleFileChange(e, "DOCUMENT")} />
 
         {pendingMedias && (
           <MultiMediaBubble previews={pendingMedias} isSending={isSendingMedia} onCancel={handleCancelPendingMedias} onSend={handleSendPendingMedias} onAddMore={() => galleryInputRef.current?.click()} />
@@ -396,7 +391,6 @@ export default function ChatInput({
           </div>
         )}
 
-        {/* TEMPLATE PICKER (fetches via chatLogic, not raw fetch/firebase) */}
         {showTemplatePicker && (
           <TemplatePicker
             uid={uid}

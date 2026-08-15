@@ -128,7 +128,7 @@ export async function uploadToCloudinary(
  */
 export async function getUserConfig(uid?: string) {
   try {
-    // Backend API par request (Token backend hi handle karega)
+    // ✅ Yahan theek kar diya hai: '/api/settings' ki jagah '/api/config'
     const res = await axios.get('/api/config');
     return res.data;
   } catch (error) {

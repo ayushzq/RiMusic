@@ -25,14 +25,19 @@ export default function TemplatePicker({ uid, onClose, onSelect }: TemplatePicke
       setError("");
       try {
         const config = await getUserConfig(uid);
-        if (!config || !config.wabaId) {
+        
+        // ✅ FIX: 'wabaId' ki jagah Prisma schema wala 'businessAccountId' laga diya
+        if (!config || !config.businessAccountId) {
           if (!cancelled) {
             setError("Meta API credentials not found in Settings.");
             setLoading(false);
           }
           return;
         }
-        const list = await fetchMetaTemplates(config.wabaId, config.accessToken);
+        
+        // ✅ FIX: Ab tokens bhejne ki zaroorat nahi, Next.js backend seedha DB se le lega!
+        const list = await fetchMetaTemplates();
+        
         if (!cancelled) {
           setTemplates(list);
           setLoading(false);

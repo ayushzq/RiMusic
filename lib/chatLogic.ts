@@ -10,6 +10,7 @@
  *   1. Prisma ke hisaab se TypeScript Types (Contact, ChatMessage, etc.)
  *   2. Cloudinary Media Uploader (Direct frontend se upload fast hota hai)
  *   3. Formatters (Time, Bytes, etc.)
+ *   4. Secure API Calls to Next.js Backend (No tokens exposed!)
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -43,7 +44,7 @@ export interface ChatMessage {
   status: MessageStatus;
   mediaUrl?: string | null;
   replyTo?: string | null;
-  timestamp: string | Date; // Prisma returns Date or ISO string
+  timestamp: string | Date; 
 }
 
 export interface Contact {
@@ -90,10 +91,6 @@ export interface CloudinaryUploadResult {
   format: string;
 }
 
-/**
- * Uploads media files directly from the browser to Cloudinary.
- * Used before sending image/video messages.
- */
 export async function uploadToCloudinary(
   file: File,
   cloudName: string,
@@ -118,5 +115,39 @@ export async function uploadToCloudinary(
   } catch (error) {
     console.error("Cloudinary upload failed:", error);
     throw new Error("Failed to upload media to Cloudinary");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. CLIENT-SIDE API CALLS (Talking to your secure Next.js Backend)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch WhatsApp Config (Phone ID, etc.) from Backend
+ * API route ab tumhare `SystemSettings` table se data layega
+ */
+export async function getUserConfig(uid?: string) {
+  try {
+    // Backend API par request (Token backend hi handle karega)
+    const res = await axios.get('/api/settings');
+    return res.data;
+  } catch (error) {
+    console.error("Failed to fetch user config from backend:", error);
+    return null; // Crash hone se bachane ke liye null return
+  }
+}
+
+/**
+ * Fetch WhatsApp Templates from Backend
+ * Frontend se wabaId ya token bhejne ki zaroorat nahi hai
+ */
+export async function fetchMetaTemplates(wabaId?: string, accessToken?: string) {
+  try {
+    // Backend DB se user/system config nikal kar Meta se templates layega
+    const res = await axios.get('/api/whatsapp/templates');
+    return res.data.templates || [];
+  } catch (error) {
+    console.error("Failed to fetch templates from backend:", error);
+    return [];
   }
 }

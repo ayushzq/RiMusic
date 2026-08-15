@@ -90,8 +90,11 @@ export default function ChatBubble({
   const [showActions, setShowActions] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  const isMe = msg.direction === "OUTBOUND";
-  const type = msg.type || "text";
+  // ✅ FIX: "sender" ko "direction" se replace kiya
+  const isMe = msg.direction === "OUTBOUND"; 
+  
+  // ✅ FIX: Prisma backend Enum (Uppercase) ko UI (Lowercase) ke hisaab se handle kiya
+  const type = (msg.type || "TEXT").toLowerCase(); 
 
   const startInteraction = (clientX: number) => {
     if (selectionMode) return;
@@ -126,16 +129,19 @@ export default function ChatBubble({
     else if (type === "text" || type === "template") setShowActions(!showActions);
   };
 
-  const formatTime = (timeStr: string) => {
-    if (!timeStr) return "";
-    return timeStr;
+  // ✅ FIX: Prisma string ya Date object dono bhejta hai, usko safely handle kiya
+  const formatTime = (timeVal: string | Date | undefined) => {
+    if (!timeVal) return "";
+    const d = new Date(timeVal);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const handleDownload = () => {
     if (!msg.mediaUrl) return;
     const a = document.createElement("a");
     a.href = msg.mediaUrl;
-    a.download = msg.mediaName || "file";
+    a.download = (msg as any).mediaName || "file"; // TS strictness bypass for missing DB fields
     a.click();
   };
 
@@ -202,7 +208,7 @@ export default function ChatBubble({
           {msg.replyTo && (
             <div className={`bg-black/[0.06] rounded-lg p-2 mb-1.5 border-l-[3px] border-[#00A884] text-xs ${type === "image" || type === "video" ? "mx-1 mt-1" : ""}`}>
               <span className="text-[#00A884] font-bold block text-[10px] mb-0.5">
-                {msg.sender === "me" ? "You" : contactName}
+                {isMe ? "You" : contactName}
               </span>
               <span className="text-gray-600 line-clamp-2 text-[12px]">{msg.replyTo}</span>
             </div>
@@ -231,7 +237,8 @@ export default function ChatBubble({
                 }}
                 className="w-full max-h-72 object-cover rounded-xl"
               />
-              {msg.text && <p className="text-[14px] leading-snug px-2 pt-1.5 pb-4 whitespace-pre-wrap break-words">{msg.text}</p>}
+              {/* ✅ FIX: text ko body se replace kiya */}
+              {msg.body && <p className="text-[14px] leading-snug px-2 pt-1.5 pb-4 whitespace-pre-wrap break-words">{msg.body}</p>} 
             </>
           )}
 
@@ -239,7 +246,8 @@ export default function ChatBubble({
           {type === "video" && msg.mediaUrl && (
             <>
               <video src={msg.mediaUrl} controls className="w-full max-h-72 rounded-xl bg-black" />
-              {msg.text && <p className="text-[14px] leading-snug px-2 pt-1.5 pb-4 whitespace-pre-wrap break-words">{msg.text}</p>}
+              {/* ✅ FIX: text ko body se replace kiya */}
+              {msg.body && <p className="text-[14px] leading-snug px-2 pt-1.5 pb-4 whitespace-pre-wrap break-words">{msg.body}</p>}
             </>
           )}
 
@@ -250,8 +258,8 @@ export default function ChatBubble({
                 <FileText className="w-5 h-5 text-purple-600" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-gray-800 truncate">{msg.mediaName}</p>
-                <p className="text-[11px] text-gray-500">{msg.mediaSize}</p>
+                <p className="text-[13px] font-semibold text-gray-800 truncate">{(msg as any).mediaName || "Document"}</p>
+                <p className="text-[11px] text-gray-500">{(msg as any).mediaSize || ""}</p>
               </div>
               <button
                 onClick={(e) => {
@@ -273,16 +281,16 @@ export default function ChatBubble({
           )}
 
           {/* ─── Location ─── */}
-          {type === "location" && msg.location && (
+          {type === "location" && (msg as any).location && (
             <a
-              href={`https://maps.google.com/?q=${msg.location.lat},${msg.location.lng}`}
+              href={`https://maps.google.com/?q=${(msg as any).location.lat},${(msg as any).location.lng}`}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="block -m-1 rounded-xl overflow-hidden"
             >
               <img
-                src={`https://staticmap.openstreetmap.de/staticmap.php?center=${msg.location.lat},${msg.location.lng}&zoom=15&size=260x140&markers=${msg.location.lat},${msg.location.lng},red-pushpin`}
+                src={`https://staticmap.openstreetmap.de/staticmap.php?center=${(msg as any).location.lat},${(msg as any).location.lng}&zoom=15&size=260x140&markers=${(msg as any).location.lat},${(msg as any).location.lng},red-pushpin`}
                 alt="Location"
                 className="w-full h-[140px] object-cover bg-gray-100"
                 onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
@@ -307,7 +315,7 @@ export default function ChatBubble({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Template</p>
-                <p className="text-[13px] font-semibold text-gray-800 truncate">{msg.templateName}</p>
+                <p className="text-[13px] font-semibold text-gray-800 truncate">{(msg as any).templateName || "Template Message"}</p>
               </div>
             </div>
           )}
@@ -315,7 +323,8 @@ export default function ChatBubble({
           {/* ─── Plain text ─── */}
           {type === "text" && (
             <p className="text-[14.2px] leading-snug text-[#111B21] whitespace-pre-wrap break-words pr-14">
-              {msg.text}
+              {/* ✅ FIX: text ko body se replace kiya */}
+              {msg.body}
             </p>
           )}
 
@@ -330,20 +339,22 @@ export default function ChatBubble({
                 type === "image" || type === "video" ? "text-white" : "text-[#667781]"
               }`}
             >
-              {formatTime(msg.time)}
+              {/* ✅ FIX: time ko timestamp se replace kiya */}
+              {formatTime(msg.timestamp)}
             </span>
             {isMe && (
               <span className="flex items-center">
-                {msg.status === "sent" && (
+                {/* ✅ FIX: Prisma ke uppercase status enums match kiye ("SENT", "DELIVERED") */}
+                {msg.status === "SENT" && (
                   <Check className={`w-3.5 h-3.5 ${type === "image" || type === "video" ? "text-white" : "text-[#8696A0]"}`} strokeWidth={2.5} />
                 )}
-                {msg.status === "delivered" && (
+                {msg.status === "DELIVERED" && (
                   <CheckCheck className={`w-3.5 h-3.5 ${type === "image" || type === "video" ? "text-white" : "text-[#8696A0]"}`} strokeWidth={2.5} />
                 )}
-                {msg.status === "read" && (
+                {msg.status === "READ" && (
                   <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" strokeWidth={2.5} />
                 )}
-                {msg.status === "failed" && (
+                {msg.status === "FAILED" && (
                   <span className="text-[10px] text-red-500 font-bold ml-0.5">!</span>
                 )}
               </span>

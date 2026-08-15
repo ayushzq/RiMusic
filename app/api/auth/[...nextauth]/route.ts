@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import FacebookProvider from "next-auth/providers/facebook";
@@ -11,8 +11,9 @@ import bcrypt from "bcryptjs"; // 🔥 NAYA: Password verify karne ke liye
 // Database connect karne ke liye single instance
 const prisma = new PrismaClient();
 
-const handler = NextAuth({
-  adapter: PrismaAdapter(prisma),
+// 🔥 NAYA CHANGE: Pura configuration ab ek exportable 'authOptions' object mein hai
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma) as any,
   
   providers: [
     // 1. Google Setup
@@ -103,7 +104,7 @@ const handler = NextAuth({
               data: { emailVerified: new Date(), status: "ONLINE", currentActivity: "Active via OTP" },
             });
           }
-          return user;
+          return user as any;
         }
 
         // 🔵 LOGIC B: Agar Password se login ho raha hai
@@ -123,7 +124,7 @@ const handler = NextAuth({
               data: { status: "ONLINE", currentActivity: "Active via Password" },
           });
 
-          return user;
+          return user as any;
         }
 
         throw new Error("Invalid login type");
@@ -205,6 +206,9 @@ const handler = NextAuth({
   },
   
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
+
+// 🔥 NAYA CHANGE: authOptions ko use karke handler banaya
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

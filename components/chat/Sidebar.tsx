@@ -11,9 +11,11 @@ interface SidebarProps {
   className?: string;
 }
 
-function timeLabel(ts?: number): string {
+// ✅ FIX: TypeScript ko bataya ki time string, Date ya number kuch bhi ho sakta hai
+function timeLabel(ts?: string | Date | number | null): string {
   if (!ts) return "";
   const date = new Date(ts);
+  if (isNaN(date.getTime())) return ""; // Safe check
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
   if (isToday) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -39,12 +41,14 @@ export default function Sidebar({ contacts, activeContactId, onSelectContact, cl
         if (existing) {
           onSelectContact(existing);
         } else {
-          // Agar naya hai, toh ek temporary contact banakar chat open kar dena
-          // Jab aap pehla message bhejenge, toh ye Firebase mein auto-save ho jayega
+          // ✅ FIX: Naye Prisma Type ke hisaab se poora Contact object banaya
           onSelectContact({
             id: cleanPhone,
-            name: cleanPhone, // Naye number ke liye naam me bhi number dikhega
+            name: cleanPhone,
             phoneNumber: cleanPhone,
+            unreadCount: 0,
+            lastMessageAt: new Date(),
+            isSessionActive: true,
           });
         }
       }
@@ -52,13 +56,16 @@ export default function Sidebar({ contacts, activeContactId, onSelectContact, cl
   };
 
   const filtered = useMemo(() => {
-    // NAYA LOGIC: Contacts ko hamesha latest time (updatedAt) ke hisaab se sort karna
-    const sortedContacts = [...contacts].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    // ✅ FIX: updatedAt ki jagah lastMessageAt use kiya, aur Date objects ko theek se sort kiya
+    const sortedContacts = [...contacts].sort((a, b) => {
+      const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return timeB - timeA;
+    });
 
     if (!query.trim()) return sortedContacts;
     const q = query.trim().toLowerCase();
     
-    // NAYA FIX: c.phone ki jagah c.phoneNumber kiya gaya hai
     return sortedContacts.filter(
       (c) => c.name?.toLowerCase().includes(q) || c.phoneNumber?.toLowerCase().includes(q)
     );
@@ -70,7 +77,6 @@ export default function Sidebar({ contacts, activeContactId, onSelectContact, cl
       <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shrink-0">
         <span className="font-bold text-lg">Chats</span>
         <div className="flex items-center gap-1">
-          {/* NAYA LOGIC: handleNewChat function attach kar diya */}
           <button onClick={handleNewChat} className="p-2 hover:bg-white/20 rounded-full transition" title="New Chat">
             <MessageSquarePlus className="w-5 h-5" />
           </button>
@@ -102,8 +108,8 @@ export default function Sidebar({ contacts, activeContactId, onSelectContact, cl
         ) : (
           filtered.map((contact) => {
             const isActive = contact.id === activeContactId;
-            // NAYA FIX: unreadCount ki jagah 'unread' use kiya hai jo aapke DB format me hai
-            const hasUnread = (contact.unread ?? 0) > 0; 
+            // ✅ FIX: 'unread' ki jagah Prisma ka 'unreadCount' laga diya
+            const hasUnread = (contact.unreadCount ?? 0) > 0; 
             
             return (
               <button
@@ -115,29 +121,31 @@ export default function Sidebar({ contacts, activeContactId, onSelectContact, cl
               >
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0">
                   <img
-                    src={contact.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.id}`}
-                    alt={contact.name}
+                    // ✅ FIX: Typescript strictness hatane ke liye (contact as any) kiya, kyuki DB me avatar nahi hai
+                    src={(contact as any).avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.id}`}
+                    alt={contact.name || contact.phoneNumber}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-[14px] truncate ${hasUnread ? "font-bold text-gray-900" : "font-semibold text-gray-800"}`}>
-                      {contact.name}
+                      {contact.name || contact.phoneNumber}
                     </span>
-                    {/* NAYA FIX: lastMessageTime ki jagah updatedAt lagaya */}
+                    {/* ✅ FIX: lastMessageAt use kiya */}
                     <span className={`text-[11px] shrink-0 ${hasUnread ? "text-[#00A884] font-bold" : "text-gray-400"}`}>
-                      {timeLabel(contact.updatedAt)} 
+                      {timeLabel(contact.lastMessageAt)} 
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <span className={`text-[12.5px] truncate ${hasUnread ? "text-gray-800 font-medium" : "text-gray-500"}`}>
-                      {contact.lastMessage || "No messages yet"}
+                      {/* ✅ FIX: lastMessage Prisma Model me nahi tha, toh usko safely any kiya */}
+                      {(contact as any).lastMessage || "No messages yet"}
                     </span>
-                    {/* NAYA: WhatsApp style unread badge */}
+                    {/* WhatsApp style unread badge */}
                     {hasUnread && (
                       <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#00A884] text-white text-[10px] font-bold flex items-center justify-center">
-                        {contact.unread}
+                        {contact.unreadCount}
                       </span>
                     )}
                   </div>

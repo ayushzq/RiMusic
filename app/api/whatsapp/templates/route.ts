@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 // ⚠️ Adjust this import to match your actual NextAuth config file/path
 // (e.g. "@/lib/auth", "@/app/api/auth/[...nextauth]/route", etc.)
-import { authOptions } from "../auth/[...nextauth]/route";
-import { prisma } from "@/lib/prisma";
+import { authOptions } from "../../auth/[...nextauth]/route";
+import { prisma } from "../../../../lib/prisma";
 
 const META_API_VERSION = "v21.0";
 

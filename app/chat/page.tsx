@@ -330,7 +330,7 @@ export default function ChatPage() {
                     isSelected={selectedIds.includes(msg.id)}
                     onToggleSelect={toggleSelect}
                     onDelete={handleDeleteSingle}
-                    onReply={(m) => setReplyingTo({ text: m.text || `${m.type} message`, sender: m.sender, id: m.id })}
+                    onReply={(m) => setReplyingTo({ text: m.body || `${m.type} message`, sender: m.direction, id: m.id })}
                     contactName={activeContact.name || activeContact.phoneNumber}
                   />
                 ))

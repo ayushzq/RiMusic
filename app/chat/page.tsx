@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowLeft, MoreVertical, Trash2, X } from "lucide-react";
-// 🔥 NAYA: Firebase hata kar NextAuth import kiya
+// ✅ NextAuth for authentication
 import { useSession } from "next-auth/react"; 
 
 import Sidebar from "../../components/chat/Sidebar";
@@ -10,8 +10,8 @@ import ChatBubble from "../../components/chat/ChatBubble";
 import ChatInput from "../../components/chat/ChatInput";
 import ThemeSelector, { ChatTheme } from "../../components/chat/ThemeSelector";
 
-// Types
-import { Contact, ChatMessage, MetaTemplate } from "../../lib/chatLogic";
+// ✅ FIX: MessageType import kiya taaki TypeScript khush rahe
+import { Contact, ChatMessage, MetaTemplate, MessageType } from "../../lib/chatLogic";
 
 const DEFAULT_WALLPAPER: ChatTheme = {
   id: "default",
@@ -165,7 +165,8 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendMedia = async (file: File, type: "image" | "video" | "document" | "audio") => {
+  // ✅ FIX: type definition abhi lowercase ki jagah Prisma wale MessageType par map ho gayi hai
+  const handleSendMedia = async (file: File, type: MessageType) => {
     if (!activeContact) return;
     alert("Media API abhi set karni baaki hai backend me!");
   };
@@ -330,7 +331,12 @@ export default function ChatPage() {
                     isSelected={selectedIds.includes(msg.id)}
                     onToggleSelect={toggleSelect}
                     onDelete={handleDeleteSingle}
-                    onReply={(m) => setReplyingTo({ text: m.body || `${m.type} message`, sender: m.direction, id: m.id })}
+                    // ✅ FIX: Reply UI ko bataya ki message maine bheja tha ya usne ("OUTBOUND" ko "me" kar diya)
+                    onReply={(m) => setReplyingTo({ 
+                      text: m.body || `${m.type} message`, 
+                      sender: m.direction === "OUTBOUND" ? "me" : "them", 
+                      id: m.id 
+                    })}
                     contactName={activeContact.name || activeContact.phoneNumber}
                   />
                 ))

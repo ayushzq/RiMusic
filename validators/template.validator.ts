@@ -1,4 +1,4 @@
-import { CreateTemplatePayload, BodyComponent } from "../../types/template.types";
+import { CreateTemplatePayload, BodyComponent } from "../types/template.types";
 
 export interface ValidationError {
   field: string;

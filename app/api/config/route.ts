@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// ✅ FIX 1: Naya PrismaClient banane ke bajaye, apna global 'db' use karo
+import { db as prisma } from "../../../prisma/lib/db";
 
 // 1. GET: Frontend ko config bhejne ke liye (Templates fetch karne ke liye bahut zaroori hai)
 export async function GET() {
@@ -14,7 +14,8 @@ export async function GET() {
       return NextResponse.json({ error: "Settings not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ settings });
+    // ✅ FIX 2: Direct settings return kar rahe hain taaki frontend easily padh sake
+    return NextResponse.json(settings);
   } catch (error) {
     console.error("Error fetching config:", error);
     return NextResponse.json({ error: "Failed to fetch configuration" }, { status: 500 });

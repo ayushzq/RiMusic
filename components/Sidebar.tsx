@@ -63,20 +63,36 @@ export default function Sidebar() {
 
       if (status === "loading") return;
 
-      // 3. Check karo kya ADMIN (NextAuth) logged in hai?
+      // 2. Check karo kya ADMIN (NextAuth) logged in hai?
       if (session?.user) {
         setUserRole("ADMIN");
         setUser(session.user);
         
-        // 🔥 FIX: Fake API route hata kar Local Storage check lagaya
-        if (typeof window !== "undefined") {
-          const savedMetaToken = localStorage.getItem("metaAccessToken");
-          // Agar token local storage mein hai, iska matlab API linked hai!
-          if (savedMetaToken && savedMetaToken.length > 10) {
-            setIsMatched(true);
+        // 🔥 FIX: Ab hum direct Database (/api/config) se check kar rahe hain ki API linked hai ya nahi
+        try {
+          const res = await fetch("/api/config");
+          if (res.ok) {
+            const data = await res.json();
+            
+            // Agar database mein accessToken maujood hai
+            if (data && data.accessToken && data.accessToken.length > 10) {
+              setIsMatched(true);
+              
+              // Local storage ko bhi sync kar dete hain (taaki ConfigModal aur dusre components theek se kaam karein)
+              if (typeof window !== "undefined") {
+                localStorage.setItem("metaAccessToken", data.accessToken);
+                localStorage.setItem("phoneId", data.phoneNumberId || "");
+                localStorage.setItem("wabaId", data.businessAccountId || "");
+              }
+            } else {
+              setIsMatched(false);
+            }
           } else {
-            setIsMatched(false);
+            setIsMatched(false); // API Error ya Settings not found
           }
+        } catch (error) {
+          console.error("Error fetching API config for sidebar:", error);
+          setIsMatched(false);
         }
         
         setLoading(false);

@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
     // 7. Resend ke zariye Email bhejna
     const { data, error } = await resend.emails.send({
-      from: 'BaseKey Security <support@basekey.in>', // Custom domain email
+      from: 'BaseKey Security <care@basekey.in>', // 🔥 Yahan change kiya hai (care@basekey.in)
       to: [email],
       subject: emailSubject,
       html: getEmailTemplate(otp), 
